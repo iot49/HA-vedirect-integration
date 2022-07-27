@@ -1,0 +1,10 @@
+{
+  "domain": "vedirect",
+  "documentation": "https://github.com/iot49/HA-vedirect-integration.git",
+  "issue_tracker": "https://github.com/iot49/HA-vedirect-integration.git/issues",
+  "requirements": ["bleak", "pyserial_asyncio"],
+  "iot_class": "local_polling",
+  "name": "Victron VE.Direct",
+  "codeowners": [ "@ttmetro" ],
+  "version": "0.1.0"
+}
