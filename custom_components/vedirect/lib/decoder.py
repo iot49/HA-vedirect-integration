@@ -50,7 +50,7 @@ class Decoder:
         if value == self._last_value:
             return
         if label == 'V' and self._last_value and abs(value-self._last_value) < 0.003:
-            # ignore small voltage changes
+            # don't spam (ignore small voltage changes)
             return
         self._last_value = value
         if label == 'AR': value = self._ar(value)
@@ -137,13 +137,13 @@ class Decoder:
         cls._add('AR', 'Alarm Reason', 'mdi:alarm-light-outline')
         cls._add('H2', 'Last Discharge', 'mdi:home-battery-outline', 'Ah', 0.001)
         cls._add('H3', 'Average Discharge', 'mdi:home-battery-outline', 'Ah', 0.001)
-        cls._add('H7', 'Min Battery Voltage', 'mdi:current-dc', 'V', 0.001)
-        cls._add('H8', 'Max Battery Voltage', 'mdi:current-dc', 'V', 0.001)
         cls._add('H19', 'Yield Total', 'mdi:home-battery', 'Wh', 0.1)
         cls._add('H20', 'Yield Today', 'mdi:home-battery', 'Wh', 0.1)
-        cls._add('H22', 'Yiel Yesterday', 'mdi:home-battery', 'Wh', 0.1)
+        cls._add('H22', 'Yield Yesterday', 'mdi:home-battery', 'Wh', 0.1)
         cls._add('ERR', 'Error Code', 'mdi:alarm-light-outline')
         cls._add('CS', 'State of Operation', 'mdi:state-machine')
+        # cls._add('H7', 'Min Battery Voltage', 'mdi:current-dc', 'V', 0.001)
+        # cls._add('H8', 'Max Battery Voltage', 'mdi:current-dc', 'V', 0.001)
 
     @classmethod
     def _add(cls, label, name, icon, unit='', scaler=None):
