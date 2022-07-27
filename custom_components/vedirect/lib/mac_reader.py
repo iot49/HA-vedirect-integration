@@ -20,6 +20,7 @@ class MACReader(Reader):
     def __init__(self, port, name):
         super().__init__(port, name)
         self._rx_queue = asyncio.Queue()
+        self._client = None
 
     @classmethod
     async def discover(cls):
@@ -28,36 +29,38 @@ class MACReader(Reader):
         for d in devices:
             _LOGGER.info(f"Found BLE device {d.address} by {d.name}")
 
-    async def _start(self):
-        await self._connect()
-        await self._configure_ble()
-        self._connect_task = asyncio.create_task(self._connection_monitor())
-
     async def stop(self):
         await self._client.disconnect()
         self._connect_task.cancel()
-
+        
     async def readln(self):
+        await self._connect()
         line = BytesIO()
         while True:
-            c = await self._rx_queue.get()
-            if c == b'\r':
-                return line.getvalue()
+            s = await self._rx_queue.get()
             line.write(c)
+            if s.endswith(b'\n'):
+                return line.getvalue()
 
     async def _connect(self):
-        self._client = BleakClient(self._port, disconnected_callback=self._disconnected)
+        if self._client and self._client.is_connected:
+            return
+        client = BleakClient(self._port, disconnected_callback=self._disconnected)
         _LOGGER.debug(f"Connecting to {self._port}")
         await self._client.connect()
         await self._client.start_notify(self.CHAR_UUID, self._handle_rx)
+        if self._client == None:
+            # run this only the first time we are connecting
+            self._connect_task = asyncio.create_task(self._connection_monitor())
+            await self._configure_ble()
+        self._client = client
         _LOGGER.info(f"Connected to {self._port}")
 
     async def _connection_monitor(self):
         # reconnect if connection is lost
         # Note: can't do this in _disconnected as it's not async
         while True:
-            if not self._client.is_connected:
-                await self._connect()
+            await self._connect()
             await asyncio.sleep(5)
 
     async def _configure_ble(self):
@@ -88,7 +91,7 @@ class MACReader(Reader):
             r = await self._rx_queue.get()
             print(f"check baudrate: {r}")
             if r != b'OK+Get:4':
-                print("Set HM-18 BLE module baudrate to 19,200 baud!")
+                _LOGGER.error("HM-18 BLE module is not configured for 19,200 baud!")
             # check name
             await self._client.write_gatt_char(self.CHAR_UUID, b'AT+NAME?')
             r = await self._rx_queue.get()
@@ -101,7 +104,10 @@ class MACReader(Reader):
             pass
 
     async def _handle_rx(self, _: int, data: bytearray):
-        await self._rx_queue.put(data)
+        for s in data.splitline(True):
+            await self._rx_queue.put(s)
 
     def _disconnected(self, _: BleakClient):
         _LOGGER.info("BLE disconnected")
+        
+
