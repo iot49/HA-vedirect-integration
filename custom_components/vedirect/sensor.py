@@ -59,7 +59,7 @@ async def ve_reader(name, reader, async_add_entities):
     while True:
         try:
             line = await reader.readln()
-            _LOGGER.debug(f"Received {line}")
+            # _LOGGER.debug(f"Received {line}")
             label, v = line.decode('utf-8').strip().split('\t')
             value, spec = Decoder.decode(label, v)
             entity = entities.get(label)
