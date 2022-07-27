@@ -12,7 +12,7 @@ _LOGGER = logging.getLogger(__name__)
 class USBReader(Reader):
 
     @classmethod
-    def discover(cls):
+    async def discover(cls):
         candidate = None
         for port in list_ports.comports():
             # log all candidates to help user find correct port
@@ -24,7 +24,7 @@ class USBReader(Reader):
         return candidate
 
     def __init__(self, port, name):
-        super.__init__(port, name)
+        super().__init__(port, name)
         self._reader = None
         
     async def readln(self):
