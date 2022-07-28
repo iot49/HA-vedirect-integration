@@ -49,8 +49,12 @@ class Decoder:
             value = float(value) * self.scaler
         if value == self._last_value:
             return
-        if label == 'V' and self._last_value and abs(value-self._last_value) < 0.003:
-            # don't spam (ignore small voltage changes)
+        # don't spam with spurious data
+        if label in ('V', 'I') and self._last_value and abs(value-self._last_value) < 0.005
+            return
+        if label in ('P') and self._last_value and abs(value-self._last_value) < 2
+            return
+        if label in ('TTG') and value < 0:
             return
         self._last_value = value
         if label == 'AR': value = self._ar(value)
