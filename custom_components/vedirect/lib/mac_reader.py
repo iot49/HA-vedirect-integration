@@ -61,6 +61,9 @@ class MACReader(Reader):
         _LOGGER.info(f"Connected to {self._port}")
 
     async def _configure_ble(self):
+        # BUG: responses interspersed with messages from UART
+        #      tricky to sort out
+        return
         try:
             # check baudrate
             await self._client.write_gatt_char(self.CHAR_UUID, b'AT+BAUD?')
