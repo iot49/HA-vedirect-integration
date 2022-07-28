@@ -146,7 +146,7 @@ class Decoder:
         cls._add('H22', 'Yield Yesterday', 'mdi:home-battery', 'Wh', 0.1)
         cls._add('ERR', 'Error Code', 'mdi:alarm-light-outline')
         cls._add('CS', 'State of Operation', 'mdi:state-machine')
-        cls._add('PID', 'Time to go', 'mdi:identifier')
+        cls._add('PID', 'Product ID', 'mdi:identifier')
         # cls._add('H7', 'Min Battery Voltage', 'mdi:current-dc', 'V', 0.001)
         # cls._add('H8', 'Max Battery Voltage', 'mdi:current-dc', 'V', 0.001)
 
