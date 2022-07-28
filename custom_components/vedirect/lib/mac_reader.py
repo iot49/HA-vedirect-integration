@@ -65,15 +65,15 @@ class MACReader(Reader):
             # check baudrate
             await self._client.write_gatt_char(self.CHAR_UUID, b'AT+BAUD?')
             r = await self._rx_queue.get()
-            _LOGGER.debug(f"check baudrate: {r}")
+            _LOGGER.debug(f"check baudrate: {r} vs {b'OK+Get:4'}")
             if r != b'OK+Get:4':
                 # Note: HM-18 baudrate can only be changed from UART side, not BLE!
                 _LOGGER.error("Set HM-18 BLE module baudrate to 19,200 baud!")
             # check name
             await self._client.write_gatt_char(self.CHAR_UUID, b'AT+NAME?')
             r = await self._rx_queue.get()
-            _LOGGER.debug(f"check name: {r}")
             _, n = r.decode().split(':')
+            _LOGGER.debug(f"check name: {r} - {n} vs {self._name}")
             if n != self._name:
                 await self._client.write_gatt_char(self.CHAR_UUID, f'AT+NAME{self._name}'.encode())
                 _LOGGER.debug(f"Updated BLE module name: {await self._rx_queue.get()}")

@@ -10,7 +10,6 @@ class Reader(ABC):
         from .mac_reader import MACReader
         is_ble = re.match('([a-fA-F0-9]{2}[:|\-]?){6}', port)
         reader = MACReader(port, name) if is_ble else USBReader(port, name)
-        await reader._start()
         return reader
 
     @classmethod

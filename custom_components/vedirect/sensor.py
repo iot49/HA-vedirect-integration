@@ -69,16 +69,11 @@ class VESensor(GenericSensor):
 
     async def _loop(self):
         """Read from VE.Direct interface"""
-        _LOGGER.debug("A")
         entities = { 'PID': self }
         decoder = Decoder.init()
-        _LOGGER.debug("B")
         reader = await Reader.create(self._port, self._device_name)
-        _LOGGER.debug("C")
         await reader.start()
-        _LOGGER.debug("D")
         while True:
-            _LOGGER.debug("E")
             try:
                 line = await reader.readln()
                 # _LOGGER.debug(f"Received {line}")
