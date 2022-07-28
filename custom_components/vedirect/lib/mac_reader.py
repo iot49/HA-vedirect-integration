@@ -82,7 +82,7 @@ class MACReader(Reader):
             pass
 
     async def _handle_rx(self, _: int, data: bytearray):
-        for s in data.splitline(True):
+        for s in data.splitlines(True):
             await self._rx_queue.put(s)
 
     def _disconnected(self, _: bleak.BleakClient):

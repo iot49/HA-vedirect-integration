@@ -32,10 +32,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 async def async_setup_platform(
-    _1: HomeAssistant,
+    hass: HomeAssistant,
     config: ConfigType,
     async_add_entities: AddEntitiesCallback,
-    _2: DiscoveryInfoType | None = None,
+    _: DiscoveryInfoType | None = None,
 ) -> None:
     """Set up the VE.Direct sensor platform."""
     name = config.get(CONF_NAME)
@@ -56,7 +56,7 @@ async def async_setup_platform(
 class VESensor(GenericSensor):
 
     def __init__(self, async_add_entities, port, device_name):
-        super().__init__(self._device_name, "Product ID", "mdi:identifier")
+        super().__init__(device_name, "Product ID", "mdi:identifier")
         self._async_add_entities = async_add_entities
         self._port = port
         self._device_name = device_name
@@ -64,20 +64,26 @@ class VESensor(GenericSensor):
 
     async def async_added_to_hass(self):
         """Handle when an entity is about to be added to Home Assistant."""
+        _LOGGER.debug("async_added_to_hass")
         self._loop_task = self.hass.loop.create_task(self._loop())
 
     async def _loop(self):
         """Read from VE.Direct interface"""
+        _LOGGER.debug("A")
         entities = { 'PID': self }
         decoder = Decoder.init()
+        _LOGGER.debug("B")
         reader = await Reader.create(self._port, self._device_name)
+        _LOGGER.debug("C")
         await reader.start()
+        _LOGGER.debug("D")
         while True:
+            _LOGGER.debug("E")
             try:
                 line = await reader.readln()
                 # _LOGGER.debug(f"Received {line}")
                 label, v = line.decode('utf-8').strip().split('\t')
-                value, spec = decoder.decode(label, v)
+                value, spec = Decoder.decode(label, v)
                 entity = entities.get(label)
                 if entity == None:
                     entity = GenericSensor(self._device_name, spec.name, spec.icon, spec.unit)
