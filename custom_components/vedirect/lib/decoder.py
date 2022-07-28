@@ -50,9 +50,9 @@ class Decoder:
         if value == self._last_value:
             return
         # don't spam with spurious data
-        if label in ('V', 'I') and self._last_value and abs(value-self._last_value) < 0.005
+        if label in ('V', 'I') and self._last_value and abs(value-self._last_value) < 0.005:
             return
-        if label in ('P') and self._last_value and abs(value-self._last_value) < 2
+        if label in ('P') and self._last_value and abs(value-self._last_value) < 2:
             return
         if label in ('TTG') and value < 0:
             return
