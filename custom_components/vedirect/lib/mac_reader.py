@@ -12,6 +12,8 @@ from .reader import Reader
 
 _LOGGER = logging.getLogger(__name__)
 
+DISCONNECTED = "DISCONNECTED"
+
 
 class MACReader(Reader):
 
@@ -29,39 +31,33 @@ class MACReader(Reader):
         for d in devices:
             _LOGGER.info(f"Found BLE device {d.address} by {d.name}")
 
-    async def stop(self):
-        await self._client.disconnect()
-        self._connect_task.cancel()
-        
-    async def readln(self):
+    async def start(self):
         await self._connect()
+        await self._configure_ble()
+
+    async def stop(self):
+        if self._client:
+            await self._client.disconnect()
+
+    async def readln(self):
         line = BytesIO()
         while True:
-            s = await self._rx_queue.get()
-            line.write(c)
-            if s.endswith(b'\n'):
+            x = await self._rx_queue.get()
+            if x == DISCONNECTED:
+                self._connect()
+                return b''
+            line.write(x)
+            if x.endswith(b'\n'):
                 return line.getvalue()
 
     async def _connect(self):
         if self._client and self._client.is_connected:
             return
-        client = BleakClient(self._port, disconnected_callback=self._disconnected)
+        self._client = BleakClient(self._port, disconnected_callback=self._disconnected)
         _LOGGER.debug(f"Connecting to {self._port}")
         await self._client.connect()
         await self._client.start_notify(self.CHAR_UUID, self._handle_rx)
-        if self._client == None:
-            # run this only the first time we are connecting
-            self._connect_task = asyncio.create_task(self._connection_monitor())
-            await self._configure_ble()
-        self._client = client
         _LOGGER.info(f"Connected to {self._port}")
-
-    async def _connection_monitor(self):
-        # reconnect if connection is lost
-        # Note: can't do this in _disconnected as it's not async
-        while True:
-            await self._connect()
-            await asyncio.sleep(5)
 
     async def _configure_ble(self):
         try:
@@ -70,12 +66,12 @@ class MACReader(Reader):
             r = await self._rx_queue.get()
             _LOGGER.debug(f"check baudrate: {r}")
             if r != b'OK+Get:4':
-                # Note: baudrate can only be changed from UART side, not BLE!
+                # Note: HM-18 baudrate can only be changed from UART side, not BLE!
                 _LOGGER.error("Set HM-18 BLE module baudrate to 19,200 baud!")
             # check name
             await self._client.write_gatt_char(self.CHAR_UUID, b'AT+NAME?')
             r = await self._rx_queue.get()
-            _LOGGER.debug(f"check name: {r}")            
+            _LOGGER.debug(f"check name: {r}")
             _, n = r.decode().split(':')
             if n != self._name:
                 await self._client.write_gatt_char(self.CHAR_UUID, f'AT+NAME{self._name}'.encode())
@@ -84,30 +80,11 @@ class MACReader(Reader):
             # no big deal if this does not work
             pass
 
-    async def _configure_ble(self):
-        try:
-            # check baudrate
-            await self._client.write_gatt_char(self.CHAR_UUID, b'AT+BAUD?')
-            r = await self._rx_queue.get()
-            print(f"check baudrate: {r}")
-            if r != b'OK+Get:4':
-                _LOGGER.error("HM-18 BLE module is not configured for 19,200 baud!")
-            # check name
-            await self._client.write_gatt_char(self.CHAR_UUID, b'AT+NAME?')
-            r = await self._rx_queue.get()
-            print(f"check name: {r}")
-            _, n = r.decode().split(':')
-            if n != self._name:
-                await self._client.write_gatt_char(self.CHAR_UUID, f'AT+NAME{self._name}'.encode())
-                print(f"Updated BLE module name: {await self._rx_queue.get()}")
-        except:
-            pass
-
     async def _handle_rx(self, _: int, data: bytearray):
         for s in data.splitline(True):
             await self._rx_queue.put(s)
 
     def _disconnected(self, _: BleakClient):
         _LOGGER.info("BLE disconnected")
-        
-
+        # tell readln to reconnect!
+        self._rx_queue.put_nowait(DISCONNECTED)

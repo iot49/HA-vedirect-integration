@@ -32,10 +32,10 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend(
 )
 
 async def async_setup_platform(
-    hass: HomeAssistant,
+    _1: HomeAssistant,
     config: ConfigType,
     async_add_entities: AddEntitiesCallback,
-    discovery_info: DiscoveryInfoType | None = None,
+    _2: DiscoveryInfoType | None = None,
 ) -> None:
     """Set up the VE.Direct sensor platform."""
     name = config.get(CONF_NAME)
@@ -47,41 +47,56 @@ async def async_setup_platform(
         _LOGGER.error(f"No port (e.g. /dev/ttyUSB0) specified for {name}. Terminating.")
         return
     _LOGGER.info(f"VE.Direct: {name} @ {port}")
-    reader = await Reader.create(port, name)
     # create reader task
-    reader_task = asyncio.create_task(ve_reader(name, reader, async_add_entities))
-    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, reader_task.cancel)
+    ve_sensor = VESensor(async_add_entities, port, name)
+    hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, ve_sensor.stop)
+    async_add_entities([ ve_sensor ], True)
 
 
-async def ve_reader(name, reader, async_add_entities):
-    entities = {}
-    decoder = Decoder.init()
-    while True:
-        try:
-            line = await reader.readln()
-            # _LOGGER.debug(f"Received {line}")
-            label, v = line.decode('utf-8').strip().split('\t')
-            value, spec = Decoder.decode(label, v)
-            entity = entities.get(label)
-            if entity == None:
-                entity = GenericSensor(name, spec.name, spec.icon, spec.unit)
-                async_add_entities([ entity ], True)
-                entities[label] = entity
-                _LOGGER.debug(f"Created entity {spec.name} [{spec.unit}]")
-            _LOGGER.debug(f"Update {entity.name} = {value} [{spec.unit}]")
-            entity.state = value
-            entity.async_write_ha_state()
-        except ValueError:
-            # line.decode('utf-8') ...
-            pass
-        except TypeError:
-            # Decoder.decode(...) == None
-            pass
-        except RuntimeError:
-            # async_write_ha_state
-            pass
-        except asyncio.CancelledError:
-            await reader.stop()
-            break
-        except Exception as exc:
-            _LOGGER.exception(f"Unexpected error in VE.Direct Integration ({name}): {exc}.")
+class VESensor(GenericSensor):
+
+    def __init__(self, async_add_entities, port, device_name):
+        super().__init__(self._device_name, "Product ID", "mdi:identifier")
+        self._async_add_entities = async_add_entities
+        self._port = port
+        self._device_name = device_name
+        self._loop_task = None
+
+    async def async_added_to_hass(self):
+        """Handle when an entity is about to be added to Home Assistant."""
+        self._loop_task = self.hass.loop.create_task(self._loop())
+
+    async def _loop(self):
+        """Read from VE.Direct interface"""
+        entities = { 'PID': self }
+        decoder = Decoder.init()
+        reader = await Reader.create(self._port, self._device_name)
+        await reader.start()
+        while True:
+            try:
+                line = await reader.readln()
+                # _LOGGER.debug(f"Received {line}")
+                label, v = line.decode('utf-8').strip().split('\t')
+                value, spec = decoder.decode(label, v)
+                entity = entities.get(label)
+                if entity == None:
+                    entity = GenericSensor(self._device_name, spec.name, spec.icon, spec.unit)
+                    self._async_add_entities([ entity ], True)
+                    entities[label] = entity
+                    _LOGGER.debug(f"Created entity {spec.name} [{spec.unit}]")
+                _LOGGER.debug(f"Update {entity.name} = {value} [{spec.unit}]")
+                entity.state = value
+                entity.async_write_ha_state()
+            except (ValueError, TypeError, RuntimeError):
+                pass
+            except asyncio.CancelledError:
+                await reader.stop()
+                break
+            except Exception as exc:
+                _LOGGER.exception(f"Unexpected error in VE.Direct Integration ({self._device_name}): {exc}.")
+
+    @callback
+    def stop(self, _):
+        """Close resources."""
+        if self._loop_task:
+            self._loop_task.cancel()

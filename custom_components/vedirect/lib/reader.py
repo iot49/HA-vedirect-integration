@@ -15,13 +15,11 @@ class Reader(ABC):
 
     @classmethod
     async def discover(cls):
-        """Search for connected VEDirect devices. Return port if a compatible device is found."""
+        """Log connected VEDirect devices. Return port if a compatible device is found."""
         from .usb_reader import USBReader
         from .mac_reader import MACReader
-        port = await USBReader.discover()
-        if port == None:
-            port = await MACReader.discover()
-        return port
+        await MACReader.discover()
+        return await USBReader.discover()
 
     @abstractmethod
     async def readln(self) -> str:
@@ -31,11 +29,10 @@ class Reader(ABC):
     async def stop(self):
         # clean shutdown (e.g. disconnect from ble)
         pass
-        
-    async def _start(self):
+
+    async def start(self):
         pass
-        
+
     def __init__(self, port, name):
         self._port = port
         self._name = name
-

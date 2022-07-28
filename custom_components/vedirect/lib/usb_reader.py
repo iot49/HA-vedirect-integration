@@ -26,7 +26,11 @@ class USBReader(Reader):
     def __init__(self, port, name):
         super().__init__(port, name)
         self._reader = None
-        
+
+    async def stop(self):
+        # close down self._reader ...
+        pass
+
     async def readln(self):
         # https://stackoverflow.com/questions/28343941/python-serialexception-device-reports-readiness-to-read-but-returned-no-data-d
         while True:
