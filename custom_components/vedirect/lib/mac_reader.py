@@ -3,9 +3,7 @@ import logging
 from abc import ABC, abstractmethod
 from io import BytesIO
 
-from bleak import BleakScanner, BleakClient
-from bleak.backends.scanner import AdvertisementData
-from bleak.backends.device import BLEDevice
+import bleak
 
 from .reader import Reader
 
@@ -27,9 +25,12 @@ class MACReader(Reader):
     @classmethod
     async def discover(cls):
         """List BLE devices."""
-        devices = await BleakScanner.discover()
-        for d in devices:
-            _LOGGER.info(f"Found BLE device {d.address} by {d.name}")
+        try:
+            devices = await bleak.BleakScanner.discover()
+            for d in devices:
+                _LOGGER.info(f"Found BLE device {d.address} by {d.name}")
+        except bleak.exc.BleakDBusError:
+            pass
 
     async def start(self):
         await self._connect()
@@ -53,7 +54,7 @@ class MACReader(Reader):
     async def _connect(self):
         if self._client and self._client.is_connected:
             return
-        self._client = BleakClient(self._port, disconnected_callback=self._disconnected)
+        self._client = bleak.BleakClient(self._port, disconnected_callback=self._disconnected)
         _LOGGER.debug(f"Connecting to {self._port}")
         await self._client.connect()
         await self._client.start_notify(self.CHAR_UUID, self._handle_rx)
@@ -84,7 +85,7 @@ class MACReader(Reader):
         for s in data.splitline(True):
             await self._rx_queue.put(s)
 
-    def _disconnected(self, _: BleakClient):
+    def _disconnected(self, _: bleak.BleakClient):
         _LOGGER.info("BLE disconnected")
         # tell readln to reconnect!
         self._rx_queue.put_nowait(DISCONNECTED)
