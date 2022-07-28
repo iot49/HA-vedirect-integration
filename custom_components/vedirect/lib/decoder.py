@@ -54,8 +54,6 @@ class Decoder:
             return
         if label in ('P', ) and self._last_value and abs(value-self._last_value) < 2:
             return
-        if label in ('TTG', ) and value < 0:
-            return
         self._last_value = value
         if label == 'AR': value = self._ar(value)
         if label == 'CS': value = self._cs(value)
